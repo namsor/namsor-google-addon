@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <base target="_top">
+    <script>
+
+        function submitClick() {
+            var apiKey = document.getElementById('apiKeyTextBox').value;
+            google.script.run.validateUser(apiKey);
+        }
+    </script>
+    <style>
+        .grid {
+            display: grid;
+            grid-template-columns: 20% 70%;
+            grid-template-rows: auto auto auto;
+            grid-row-gap: 1.5ch;
+        }
+
+        .labelHeader {
+            font-weight: bold;
+            color: #003264;
+        }
+
+        .button {
+            border-radius: 4px;
+            margin: 0px;
+            border: none;
+            outline: none;
+            font-family: 'Roboto', sans-serif;
+            font-weight: 700;
+            font-size: 14px;
+            line-height: 5px;
+            align-items: center;
+            justify-content: center;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: white;
+            background-color: #375F9B;
+            padding: 16px 16px;
+            transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, box-shadow 0.2s ease-in-out, border 0.2s ease-in-out;
+            cursor: pointer;
+            grid-column: 2/2;
+            justify-self: end;
+
+        }
+
+        .bordered {
+            padding: 5px;
+            border-style: solid;
+            border-width: 0.1ch;
+            border-color: #003264;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h3 class="labelHeader">Enter api key
+        <h3>
+            <div class="grid bordered">
+
+                <label for="apiKeyTextBox" class="labelHeader" placeholder="Please enter API key">API key</label>
+                <input type="text" id="apiKeyTextBox">
+
+                <button type="submit" class="button" onclick="submitClick()">Submit</button>
+
+            </div>
+            <hr>
+            <label style="font-weight:normal; font-size:12px;">Do not have API key?</label>
+                
+            <div>
+                <a href="https://v2.namsor.com/NamSorAPIv2/sign-in.html" target="_blank">
+                   Login here
+                </a>
+            </div>
+</body>
+
+</html>

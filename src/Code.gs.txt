@@ -1,0 +1,197 @@
+/*
+// Create Menu on spreadsheet
+*/
+function onOpen(){
+  
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('NamSor-Api').addItem('Genederize selected range', 'genderizeRange').addToUi();  
+}
+
+/*
+// Validate range selection
+// If range selection is valid, show the dialog for selecting output column.
+// Also checks if user has saved API key. if not found, then Login dialog is displayed
+*/
+function genderizeRange(){
+  
+  var apiKey = getApiKey();
+  if(!apiKey){
+    showDialog();
+    return; 
+  }
+  
+  var activeSheet = SpreadsheetApp.getActiveSheet();
+  var selection = activeSheet.getSelection();
+  
+  var personalizeNameData = [];
+  
+  var activeRange = selection.getActiveRange();
+  var firstRowIndex = activeRange.getRowIndex();
+  var firstColIndex = activeRange.getColumn();
+  
+  var rows = activeRange.getNumRows();
+  var cols = activeRange.getNumColumns();
+  
+  if(rows < 1 || cols != 3){
+    var ui = SpreadsheetApp.getUi();
+    ui.alert('Range selection', 'Selected range should contain 3 columns and at least one row.', ui.ButtonSet.OK);
+    
+    return;
+  }
+  
+  var template = HtmlService.createTemplateFromFile('SelectOutputOptions');
+  template.data = [activeRange.getLastColumn() + 1];
+  var htmlOutput = template.evaluate();
+  var html = htmlOutput                            //HtmlService.createHtmlOutputFromFile('SelectOutputOptions')
+  .setWidth(500)
+  .setHeight(300);
+  SpreadsheetApp.getUi() // Or DocumentApp or SlidesApp or FormApp.
+  .showModalDialog(html, 'NamSor Api');
+  
+  return; 
+ 
+}
+
+/*
+// call api and write the result back to spreadsheet on selected column
+*/
+function processOutput(outputColIndex){
+  
+  // At this step, api key will be available. so no need to check if it exist or not.
+  var apiKey = getApiKey();
+  
+  var activeSheet = SpreadsheetApp.getActiveSheet();
+  var selection = activeSheet.getSelection();
+  var personalizeNameData = [];
+  
+  var activeRange = selection.getActiveRange();
+  var firstRowIndex = activeRange.getRowIndex();
+  var firstColIndex = activeRange.getColumn();
+  var rows = activeRange.getNumRows();
+  var cols = activeRange.getNumColumns();
+  
+  
+  var lastCol = activeRange.getLastColumn();
+  
+  var values = activeRange.getDisplayValues();
+  for(var row = 0; row < values.length; row++){
+    personalizeNameData.push({id:values[row][0], firstName: values[row][1], lastName: values[row][2] });      
+    
+  }
+  
+  var jsonData = genderizeNameApi(personalizeNameData, apiKey);
+  var parseJson = JSON.parse(jsonData);
+  console.log(parseJson);
+  
+  
+  for(var index = 0; index < rows; index++){
+    
+    var selectedId = activeRange.getCell(index + 1, 1).getValue();
+    var selectedfirstName = activeRange.getCell(index + 1, 2).getValue();
+    var selectedLastName = activeRange.getCell(index + 1, 3).getValue();
+    
+    var foundElement = null;
+    for(var jsonId = 0; jsonId < parseJson.personalNames.length; jsonId++){
+      if(parseJson.personalNames[jsonId].id == selectedId &&  parseJson.personalNames[jsonId].firstName  == selectedfirstName &&
+         parseJson.personalNames[jsonId].lastName == selectedLastName){
+        foundElement = parseJson.personalNames[jsonId];
+        break;
+        
+      }
+      
+    }
+    
+    
+    var valuesToSet = [foundElement.likelyGender,foundElement.score];
+    activeSheet.getRange(firstRowIndex + index, outputColIndex, 1, 2).setValues([valuesToSet] );
+    
+  }
+  
+}
+
+/*
+// Call NamSor api
+*/
+function genderizeNameApi(personalizeNameData, apiKey) {
+  
+  var url = "https://v2.namsor.com/NamSorAPIv2/api2/json/genderBatch";
+  var requestData =        {
+    personalNames: []
+  };
+  
+  personalizeNameData.map(function(item){
+    requestData.personalNames.push({
+      "firstName": item.firstName,
+      "lastName": item.lastName,
+      "id": item.id
+    });
+  });
+  
+  
+  console.log(JSON.stringify(requestData));
+  
+  var data = UrlFetchApp.fetch(url, {
+    "method": "POST",
+    'contentType': 'application/json',
+    "headers": {
+      "X-API-KEY": apiKey,
+      "Accept": "application/json"
+    },
+    "payload": JSON.stringify(requestData),
+    "muteHttpExceptions": true 
+    
+  });
+  
+  return data;
+}
+
+/*
+// Validate api key entered by user in Login dialog.
+*/
+function validateUser(apiKey){
+  console.log('validate user called');
+  
+  if(!apiKey){
+    var ui = SpreadsheetApp.getUi();
+    
+    ui.alert('NamSor Api', 'Please enter api key', ui.ButtonSet.OK);
+    return;
+  }
+  var personalizeNameData = [];
+  personalizeNameData.push({id:'0', firstName: 'first name', lastName: 'last name' }); 
+  
+  var response = genderizeNameApi(personalizeNameData, apiKey);
+  
+  if(response.getResponseCode() == 401){
+    var ui = SpreadsheetApp.getUi();
+    
+    ui.alert('NamSor Api', 'Please enter correct api key', ui.ButtonSet.OK);
+    return;  
+  }
+  
+  var userProp = PropertiesService.getUserProperties();  
+  
+  userProp.setProperty('ApiKey', apiKey);
+  
+  
+  console.log('apiKey=%s', apiKey);
+  
+   genderizeRange();
+  
+}
+
+function getApiKey(){
+  
+  var userProp = PropertiesService.getUserProperties();
+  
+  return userProp.getProperty('ApiKey');
+}
+
+function showDialog() {
+  var html = HtmlService.createHtmlOutputFromFile('LoginPage')
+  .setWidth(500)
+  .setHeight(300);
+  SpreadsheetApp.getUi() // Or DocumentApp or SlidesApp or FormApp.
+  .showModalDialog(html, 'NamSor Api');
+}
+
